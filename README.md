@@ -1,4 +1,5 @@
-# analyse-ts
+# Analyse-TS
+Analyse Typescript Codebase | Generate Dependency Graph
 
 #### Pre Requisite
 
@@ -15,7 +16,7 @@ ts-node ./src/index.ts --help
 ```
 
 ```
-Analyse Typescript Codebase | Generate Dependecy Graph
+Analyse Typescript Codebase | Generate Dependency Graph
 
 Options:
   -V, --version             output the version number
