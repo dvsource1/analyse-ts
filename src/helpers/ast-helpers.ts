@@ -35,6 +35,7 @@ const filterKind = (
 }
 
 const getClassNodes = (files) => {
+  const classFileMap = new Map<string, string>();
   const klassNameToFileNameMap = new Map<string, ClassDeclaration>()
   const duplicateKlassNames = new Set()
 
@@ -51,11 +52,12 @@ const getClassNodes = (files) => {
           duplicateKlassNames.add(klassName)
         }
         klassNameToFileNameMap.set(klassName, node)
+        classFileMap.set(klassName, file)
       })
     })
   })
 
-  return { nodeMap: klassNameToFileNameMap, duplicates: duplicateKlassNames }
+  return { classFileMap, nodeMap: klassNameToFileNameMap, duplicates: duplicateKlassNames }
 }
 
 const getConstructorDepandencies = (

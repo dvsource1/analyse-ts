@@ -4,6 +4,7 @@ import {
   generateDependencyTree,
   mapClassDependencyUsages,
   mapClassIndexes,
+  mapClassUsages,
   mapDependencyClasses,
 } from './functions'
 import { getClassNodes } from './helpers/ast-helpers'
@@ -32,6 +33,7 @@ if (!isEmpty(files)) {
   const CLASS_INDEX_MAP = mapClassIndexes(CLASS_NODE_MAP)
   const CLASS_DEPENDENCY_USAGE_MAP = mapClassDependencyUsages(CLASS_INDEX_MAP)
   const DEPENDENCY_CLASS_MAP = mapDependencyClasses(CLASS_DEPENDENCY_USAGE_MAP)
+  const CLASS_USAGE_MAP = mapClassUsages(CLASS_DEPENDENCY_USAGE_MAP)
 
   if (!isEmpty(options.start)) {
     const { start, level, output } = options
@@ -42,7 +44,6 @@ if (!isEmpty(files)) {
       CLASS_DEPENDENCY_USAGE_MAP,
       +level
     )
-    console.log(DEPENDENCY_TREE)
 
     if (isFileExt(output, 'json')) {
       writeJSON(DEPENDENCY_TREE, output)

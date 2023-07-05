@@ -76,9 +76,31 @@ const generateDependencyTree = (
   return depTree
 }
 
+const mapClassUsages = (
+  classDependencyUsageMap: Map<string, Map<string, string[]>>
+) => {
+  const finalMap = new Map<string, string[]>()
+  Array.from(classDependencyUsageMap, ([key, dependencyUsageMap]) => {
+    Array.from(dependencyUsageMap, ([dep, usages]) => {
+      if (!finalMap.has(dep)) {
+        finalMap.set(dep, [])
+      }
+      finalMap.get(dep).push(...usages)
+    })
+  })
+
+  Array.from(finalMap, ([key, usages]) => {
+    finalMap.set(key, Array.from(new Set(usages)))
+  })
+
+  console.log(finalMap)
+  return finalMap
+}
+
 export {
   generateDependencyTree,
   mapClassDependencyUsages,
   mapClassIndexes,
   mapDependencyClasses,
+  mapClassUsages
 }
