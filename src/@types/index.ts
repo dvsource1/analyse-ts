@@ -1,3 +1,4 @@
 export interface ClassIndex {
-  dependencies: Set<string>
+  dependencies: Map<string, string>
+  usages: Map<string, string[]>
 }

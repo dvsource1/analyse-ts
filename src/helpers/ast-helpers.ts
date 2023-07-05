@@ -1,5 +1,5 @@
 import { readFileSync } from 'fs'
-import { forEach, forOwn, get, set } from 'lodash'
+import { filter, find, forEach, forOwn, get, isEmpty, map, set } from 'lodash'
 import {
   ClassDeclaration,
   ConstructorDeclaration,
@@ -60,27 +60,84 @@ const getClassNodes = (files) => {
 
 const getConstructorDepandencies = (
   node: ConstructorDeclaration
-): Set<string> => {
-  const dependencies = new Set<string>()
+): { dependencies: Map<string, string>; supperCallArguments: string[] } => {
+  const dependencies = new Map<string, string>()
   const parameters: NodeArray<ParameterDeclaration> = get(node, 'parameters')
+  let supperCallArguments = []
 
   forEach(parameters, (parameter) => {
-    dependencies.add(get(parameter, 'type.typeName.escapedText'))
+    const type = get(parameter, 'type.typeName.escapedText')
+    if (type) {
+      dependencies.set(type, get(parameter, 'name.escapedText'))
+    }
   })
-  return dependencies
+
+  const constructorStatements = filter(get(node, 'body.statements'), {
+    kind: SyntaxKind.ExpressionStatement,
+  })
+  const supperCallStatement = find(constructorStatements, (s) => {
+    return get(s, 'expression.expression.kind') === SyntaxKind.SuperKeyword
+  })
+  supperCallArguments = filter(
+    get(supperCallStatement, 'expression.arguments'),
+    { kind: SyntaxKind.Identifier }
+  )
+  supperCallArguments = map(supperCallArguments, 'escapedText')
+
+  return { dependencies, supperCallArguments }
 }
 
 const indexClass = (node: ClassDeclaration): ClassIndex => {
-  let dependencies = new Set<string>()
+  let dependencyMap = new Map<string, string>()
+  let supperCallIdentifiers = []
+
   const members = get(node, 'members')
   forEach(members, (member) => {
     if (member.kind === SyntaxKind.Constructor) {
-      dependencies = getConstructorDepandencies(
+      const { dependencies, supperCallArguments } = getConstructorDepandencies(
         member as ConstructorDeclaration
       )
+      dependencyMap = dependencies
+      supperCallIdentifiers = supperCallArguments
     }
   })
-  return { dependencies }
+
+  let usages = new Map<string, string[]>()
+  if (!isEmpty(dependencyMap)) {
+    if (!isEmpty(supperCallIdentifiers)) {
+      const dependencyReverveMap = new Map<string, string>()
+      Array.from(dependencyMap, ([key, value]) => {
+        dependencyReverveMap.set(value, key)
+      })
+
+      forEach(supperCallIdentifiers, (argId) => {
+        const key = dependencyReverveMap.get(argId)
+        usages.set(key, ['super'])
+      })
+    }
+
+    const scan =
+      (properties: Set<string>, parentRef: Node, id: string) =>
+      (scanNode: Node) => {
+        if (scanNode.kind === SyntaxKind.PropertyAccessExpression) {
+          if (get(scanNode, 'name.escapedText') === id) {
+            properties.add(get(parentRef, 'name.escapedText'))
+          }
+          if (get(scanNode, 'expression.escapedText') === id) {
+            properties.add(get(scanNode, 'name.escapedText'))
+          }
+        }
+        forEachChild(scanNode, scan(properties, scanNode, id))
+      }
+
+    Array.from(dependencyMap, ([key, identifier]) => {
+      const properties = new Set<string>()
+      scan(properties, null, identifier)(node)
+      usages.set(key, [...(usages.get(key) || []), ...Array.from(properties)])
+    })
+  }
+
+  return { dependencies: dependencyMap, usages }
 }
 
 export { filterKind, getClassNodes, indexClass }

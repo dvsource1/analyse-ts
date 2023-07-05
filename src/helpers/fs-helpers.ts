@@ -23,7 +23,6 @@ const getAllFilesInFolder = (
 }
 
 const isFileExt = (fileName: string, ext: string): boolean => {
-  console.log(fileName)
   const fileExtension = fileName.split('.').pop()
   return fileExtension === ext
 }

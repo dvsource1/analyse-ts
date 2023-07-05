@@ -1,9 +1,12 @@
 import { Command } from 'commander'
-import { forEach, isEmpty, set } from 'lodash'
-import { ClassDeclaration } from 'typescript'
-import { ClassIndex } from './@types'
-import { mapClassDependencies } from './functions'
-import { getClassNodes, indexClass } from './helpers/ast-helpers'
+import { isEmpty } from 'lodash'
+import {
+  generateDependencyTree,
+  mapClassDependencyUsages,
+  mapClassIndexes,
+  mapDependencyClasses,
+} from './functions'
+import { getClassNodes } from './helpers/ast-helpers'
 import { filterFiles } from './helpers/commander-helpers'
 import { isFileExt, writeJSON, writeText } from './helpers/fs-helpers'
 
@@ -11,7 +14,7 @@ const program = new Command()
 
 program
   .version('1.0.0-beta')
-  .description('Analyse Typescript Codebase | Generate Dependecy Graph')
+  .description('Analyse Typescript Codebase | Generate Dependency Graph')
   .option('-f, --files [files...]', 'input files', [])
   .option('-p, --path <path>', 'input folder')
   .option('-e, --except <file-part>', 'except file part; eg: spec.ts')
@@ -26,46 +29,25 @@ const files = filterFiles(options)
 if (!isEmpty(files)) {
   const { nodeMap: CLASS_NODE_MAP } = getClassNodes(files)
 
-  const CLASS_INDEXS = new Map<string, ClassIndex>()
-  forEach(Array.from(CLASS_NODE_MAP), ([key, node], i) => {
-    CLASS_INDEXS.set(key, indexClass(node as ClassDeclaration))
-  })
-
-  const CLASS_DEPENDENCIES = mapClassDependencies(CLASS_INDEXS)
-
-  const generateDependencyTree = (keys: string[]) => {
-    console.log(keys)
-    const depTree = {}
-
-    const buildGraph =
-      (level: number = 0) =>
-      (key: string, path: string[]) => {
-        console.log(level)
-        set(depTree, path.join('.'), {})
-        const deps = CLASS_DEPENDENCIES.get(key)
-
-        if (level < +options.level) {
-          forEach(deps, (dep) => {
-            buildGraph(level + 1)(dep, [...path, dep])
-          })
-        }
-      }
-
-    forEach(keys, (key) => {
-      buildGraph()(key, [key])
-    })
-
-    console.log(depTree)
-    return depTree
-  }
+  const CLASS_INDEX_MAP = mapClassIndexes(CLASS_NODE_MAP)
+  const CLASS_DEPENDENCY_USAGE_MAP = mapClassDependencyUsages(CLASS_INDEX_MAP)
+  const DEPENDENCY_CLASS_MAP = mapDependencyClasses(CLASS_DEPENDENCY_USAGE_MAP)
 
   if (!isEmpty(options.start)) {
-    const depTree = generateDependencyTree([...options.start])
+    const { start, level, output } = options
 
-    if (isFileExt(options.output, 'json')) {
-      writeJSON(depTree, options.output)
+    const DEPENDENCY_TREE = generateDependencyTree(
+      [...start],
+      DEPENDENCY_CLASS_MAP,
+      CLASS_DEPENDENCY_USAGE_MAP,
+      +level
+    )
+    console.log(DEPENDENCY_TREE)
+
+    if (isFileExt(output, 'json')) {
+      writeJSON(DEPENDENCY_TREE, output)
     } else {
-      writeText(depTree, options.output)
+      writeText(DEPENDENCY_TREE, output)
     }
   }
 }
